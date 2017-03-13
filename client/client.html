@@ -13,6 +13,7 @@
       let colorSelect;
       let roomName = "Not Set";
       let inRoom = false;
+      let drawInterval;
       
       const sandArray = [];
       let dragging;
@@ -130,7 +131,7 @@
           canvas.onmouseup = doMouseup;
           canvas.onmouseout = doMouseout;
           
-          setInterval( ()=>{
+          drawInterval = setInterval( ()=>{
             moveSand();
             drawSand();
           },(50));
@@ -208,6 +209,7 @@
           //console.log("clicked leave");
           socket.disconnect();
           inRoom = false;
+          clearInterval(drawInterval);
           
           roomButton.style.backgroundColor = "white";
           randButton.style.backgroundColor = "white";
