@@ -26,17 +26,17 @@ const onJoined = (sock) => {
   const socket = sock;
   socket.on('join', (data) => {
     console.log(`Data: ${data}`);
-    
+
     if (data === '') {
       roomName = `room${roomNum}`;
       if (roomInt % 2 === 0) {
         roomNum++;
       }
       roomInt++;
-    }else if(data === 'private'){
+    } else if (data === 'private') {
       roomName = `private${privateNum}`;
       privateNum++;
-    }else {
+    } else {
       roomName = data;
     }
     console.log(`RoomName: ${roomName}`);
@@ -49,7 +49,7 @@ const onUpdate = (sock) => {
   const socket = sock;
   socket.on('sandToServer', (data) => {
     // data.color = 'lightpink';
-    socket.broadcast.to('room1').emit('broadcastSand', data);
+    socket.broadcast.to(socket.room).emit('broadcastSand', data);
   });
 };
 
