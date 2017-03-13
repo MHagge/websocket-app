@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang='en'>
+  <head>
+    <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="text/babel">
+    ()=>{ //IIFE
+      "use strict"
+      //GLOBALS
+      let socket;
+      let ctx;
+      let canvas;
+      let colorSelect;
+      let roomName = "Not Set";
+      let inRoom = false;
+      
+      const sandArray = [];
+      let dragging;
+      
+      /*
+      const ExampleMethodDefinedAbove=()=>{
+        //do stuff, change screen, change arrays
+        socket.emit('exampleONonServer', {object: object});
+      }
+      */
+      
+      /*
+        handler methods
+        
+        call setup method in init after join
+        in set up give server info about unique client 
+      */
+      
+      const doMousedown = (e) =>{
+        dragging = true;
+        
+        //var mouse = getMouse(e);
+        //dropSand(getMouse(e));
+      };
+      const doMousemove = (e) => {
+        if(dragging){
+          dropSand(getMouse(e), colorSelect.value)
+        }
+      };
+      const doMouseup = () =>{
+        dragging = false;
+      }
+      const doMouseout = () =>{
+        dragging = false;
+      }
+      
+      const dropSand = (mouse, color) => {
+        const particle = {
+          width: 3,
+          height: 3,
+          x: mouse.x,
+          y: mouse.y,
+          color: color,
+          colliding: false,
+        };
+        sandArray.push(particle);
+        socket.emit('sandToServer', particle);
+      };
+      
+      const moveSand = () =>{
+        
+        for(let i = 0; i < sandArray.length; i++){
+          
+          //resest colliding to false
+          sandArray[i].colliding = false;
+          //check all collisions
+          for(let j = 0; j < sandArray.length; j++){
+            //don't check same particle against itself           
+            if(i != j){
+              if(isColliding(sandArray[i], sandArray[j])){
+                  sandArray[i].colliding = true;
+              }              
+            }
+          }
+          if(sandArray[i].colliding === false){
+            if(sandArray[i].y < 280){
+              sandArray[i].y+=4;
+            }
+          }          
+        }
+      };
+      
+      const isColliding = (p1, p2) =>{
+        if( p1.x < p2.x+p2.width &&
+            p1.x+p1.width > p2.x &&
+            p1.y < p2.y+p2.height &&
+            p1.y+p1.height > p2.y &&
+            p1.y < p2.y ){
+            //console.log('collision');  
+            return true;       
+        }
+        
+      };
+      
+      const drawSand = () =>{
+        //clear canvas 
+        ctx.fillStyle = '#597686';
+        ctx.fillRect(0,0,500,500);
+        for(let i = 0; i < sandArray.length; i++){
+          const s = sandArray[i];
+          //ctx.strokeStyle = 'black';
+          //ctx.lineWidth='1';
+          ctx.fillStyle = s.color;
+          ctx.fillRect(s.x,s.y,s.width,s.height);
+
+        }
+      };
+      
+      const getMouse = (e)=>{
+		var mouse = {}
+		mouse.x = e.pageX - e.target.offsetLeft;
+		mouse.y = e.pageY - e.target.offsetTop;
+		return mouse;
+      };
+      
+      const onConnect = () => {
+        socket = io.connect();
+        
+        socket.on('connect', () => {
+          console.log(`connecting to room: ${roomName}`)
+          socket.emit('join', roomName);
+          
+          canvas.onmousedown = doMousedown;
+          canvas.onmousemove = doMousemove;
+          canvas.onmouseup = doMouseup;
+          canvas.onmouseout = doMouseout;
+          
+          setInterval( ()=>{
+            moveSand();
+            drawSand();
+          },(50));
+        });
+        
+        socket.on('broadcastSand', (data)=>{
+          sandArray.push(data);
+        })
+      };
+      
+      const noRoomScreen = () =>{
+        ctx.fillStyle = '#597686';
+        ctx.fillRect(0,0,500,500);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "white";
+        ctx.fillText("Enter Room to Begin", canvas.width/2, canvas.height/2 );
+        
+      };
+      
+      const init = () => {
+        canvas = document.querySelector("#canvas");
+        ctx = canvas.getContext("2d");
+        
+        noRoomScreen();
+        
+        colorSelect = document.querySelector("#colorSelect");
+        //let roomName = "";
+        
+        //grab all buttons
+        const roomButton = document.querySelector("#roomButton");
+        const randButton = document.querySelector("#randButton");
+        const privateButton = document.querySelector("#privateButton");
+        const leaveButton = document.querySelector("#leaveButton");
+        
+        
+        roomButton.addEventListener('click', ()=>{
+          if(!inRoom){
+            roomName = document.querySelector("#roomName").value;
+            //console.log("clicked enter room")
+            onConnect();
+            inRoom = true;
+            roomButton.style.backgroundColor = "grey";
+            randButton.style.backgroundColor = "grey";
+            privateButton.style.backgroundColor = "grey";
+
+          }
+        });
+        
+        randButton.addEventListener('click', ()=>{
+          if(!inRoom){
+            roomName = "";
+            //console.log("clicked rand")
+            onConnect();
+            inRoom = true;
+            roomButton.style.backgroundColor = "grey";
+            randButton.style.backgroundColor = "grey";
+            privateButton.style.backgroundColor = "grey";
+          }
+        });
+        
+        privateButton.addEventListener('click', ()=>{
+          if(!inRoom){
+            roomName = "private";
+            //console.log("clicked private")
+            onConnect();
+            inRoom = true;
+            roomButton.style.backgroundColor = "grey";
+            randButton.style.backgroundColor = "grey";
+            privateButton.style.backgroundColor = "grey";
+          }
+        });
+        
+        leaveButton.addEventListener('click', ()=>{
+          //console.log("clicked leave");
+          socket.disconnect();
+          inRoom = false;
+          
+          roomButton.style.backgroundColor = "white";
+          randButton.style.backgroundColor = "white";
+          privateButton.style.backgroundColor = "white";
+        });
+        
+        
+        //set up socket.on other calls from server
+        /*EXAMPLE
+        socket.on('examlpe', (data)=>{
+          ExampleMethodDefinedAbove();
+        });
+        */
+        
+      };
+      
+      window.onload = init;
+      
+    }(); //END IIFE    
+    </script>
+    <style>
+      input{
+        background-color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas" height="300" width="300">Please use an HTML 5 browser</canvas>
+    <br />
+    <label>Color:
+      <select id="colorSelect">
+        <option value="black">black</option>
+        <option value="red" >red</option>
+        <option value="orange">orange</option>
+        <option value="yellow">yellow</option>
+        <option value="green">green</option>
+        <option value="blue">blue</option>
+        <option value="indigo">indigo</option>
+        <option value="violet">violet</option>
+        <option value="#482400">brown</option>
+        <option value="lightgrey">light grey</option>
+        <option value="teal">teal</option>
+        <option value="pink">pink</option>
+        <option value="lime">lime</option>
+        <option value="gold">gold</option>
+        <option value="#003300">dark green</option>
+        <option value="#ffe7cc" selected>tan</option>
+        <option value="darkred">dark red</option>
+        <option value="white">white</option>
+      </select>
+    </label>
+    <br />
+    <input id="roomButton" type="button" value="Enter room:" />
+    <input id="roomName" type="text" placeholder="room" />
+    <br />
+    <input id="randButton" type="button" value="Enter random room." />
+    <br />
+    <input id="privateButton" type="button" value="Enter private room." />
+    <br />
+    <input id="leaveButton" type="button" value="Leave room." />
+
+  </body>
+</html>
