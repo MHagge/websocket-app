@@ -1,6 +1,9 @@
+<!--SOURCED http://jsfiddle.net/RyaeS/28/-->
+
 <!DOCTYPE html>
 <html lang='en'>
   <head>
+    <link rel="stylesheet" type="text/css" href="/style.css" />
     <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script type="text/babel">
@@ -14,43 +17,79 @@
       let roomName = "Not Set";
       let inRoom = false;
       let drawInterval;
+      let pleaseWork;
       
-      const sandArray = [];
+      const buffer = [];
+      const empty = 0;
+      const sand = 2;
+      const wall = 1;
+      let sandColor = "#ffe7cc";
+      //vv
+      const width = 100;
+      const height = 100;
+      const cellSize = 5;
+
+      //^^
+      
       let dragging;
       
-      /*
-      const ExampleMethodDefinedAbove=()=>{
-        //do stuff, change screen, change arrays
-        socket.emit('exampleONonServer', {object: object});
-      }
-      */
-      
-      /*
-        handler methods
+      const setBufToServer = (x, y, val) =>{
         
-        call setup method in init after join
-        in set up give server info about unique client 
-      */
+        //socket.emit('sandToServer', particle);
+        
+        //console.log(`socket: ${socket}`);
+        socket.emit('sandToServer', {x:x, y:y, val:val});
+
+        //console.log(`In setBuf. val: ${val}. x: ${x}, y: ${y}`);
+        //console.log("why lord");
+        //buffer[x+y*width] = val;
+        //console.log(x+y*width);
+      };
       
+      const setBuf =(x, y, val) =>{
+        buffer[x+y*width] = val;
+      }
+      
+      const getBuf = (x, y) =>{
+        if (x < 0 || x >= width ||
+            y < 0 || y >= height)
+          return empty;
+        return buffer[x + y * width];
+      };
+      /*
+      const placeSand = () =>{
+        // place sand at top of screen
+        set-BufToServer(Math.floor(width / 2) + Math.floor(Math.random() * 6) - 3, 3, sand);
+      }*/
       const doMousedown = (e) =>{
         dragging = true;
         
-        //var mouse = getMouse(e);
-        //dropSand(getMouse(e));
+
       };
       const doMousemove = (e) => {
         if(dragging){
-          dropSand(getMouse(e), colorSelect.value)
+
+          setTimeout( ()=>{
+            const mouse = getMouse(e);
+            
+            setBufToServer(Math.floor(mouse.x/5), Math.floor(mouse.y/5), sand);
+            //console.dir(buffer);
+          },10); 
+
         }
       };
       const doMouseup = () =>{
         dragging = false;
+        //clearInterval(pleaseWork);
       }
       const doMouseout = () =>{
         dragging = false;
+        //clearInterval(pleaseWork);
       }
       
+      /*
       const dropSand = (mouse, color) => {
+        
         const particle = {
           width: 3,
           height: 3,
@@ -61,10 +100,15 @@
         };
         sandArray.push(particle);
         socket.emit('sandToServer', particle);
+        
+        
+        
+        
       };
+      */
       
       const moveSand = () =>{
-        
+        /*
         for(let i = 0; i < sandArray.length; i++){
           
           //resest colliding to false
@@ -83,22 +127,35 @@
               sandArray[i].y+=4;
             }
           }          
-        }
-      };
-      
-      const isColliding = (p1, p2) =>{
-        if( p1.x < p2.x+p2.width &&
-            p1.x+p1.width > p2.x &&
-            p1.y < p2.y+p2.height &&
-            p1.y+p1.height > p2.y &&
-            p1.y < p2.y ){
-            //console.log('collision');  
-            return true;       
+        }*/
+        
+        // set dir to +1 or -1 randomly 
+
+        
+        for (let y = height - 1; y >= 0; y--) {
+          for (let x = 0; x < width; x++) {
+            if (getBuf(x, y) === sand) { // if we have sand
+              //if(y < canvas.height){
+                
+                //dir is direction. it chooses which way sand will fall
+                let dir = Math.random() < 0.5 ? -1 : 1;
+                
+                if (getBuf(x, y + 1) === empty) { // if empty below
+                    setBuf(x, y, empty); // clear sand
+                    setBuf(x, y + 1, sand); // move sand
+                } else if (getBuf(x + dir, y + 1) === empty) { // if empty diagonal
+                    setBuf(x, y, empty); // clear sand
+                    setBuf(x + dir, y + 1, sand); // move sand
+                }
+              //}
+            }
+          }
         }
         
       };
-      
-      const drawSand = () =>{
+
+      const drawSand = (color) =>{
+        /*
         //clear canvas 
         ctx.fillStyle = '#597686';
         ctx.fillRect(0,0,500,500);
@@ -110,10 +167,26 @@
           ctx.fillRect(s.x,s.y,s.width,s.height);
 
         }
+        */
+      
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+              if(getBuf(x,y) === empty){
+                ctx.fillStyle = '#597686';
+              }else if(getBuf(x,y) === sand){
+                ctx.fillStyle = sandColor;
+              }
+              else if(getBuf(x,y) === wall){
+                ctx.fillStyle = '#444';
+              }
+              ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+          }
+        }
+      
       };
       
       const getMouse = (e)=>{
-		var mouse = {}
+		let mouse = {}
 		mouse.x = e.pageX - e.target.offsetLeft;
 		mouse.y = e.pageY - e.target.offsetTop;
 		return mouse;
@@ -131,6 +204,10 @@
           canvas.onmouseup = doMouseup;
           canvas.onmouseout = doMouseout;
           
+          for (let x = 0; x < 500; x++){
+            setBufToServer(x, height - 10, wall);  
+          }
+          
           drawInterval = setInterval( ()=>{
             moveSand();
             drawSand();
@@ -138,7 +215,9 @@
         });
         
         socket.on('broadcastSand', (data)=>{
-          sandArray.push(data);
+          //sandArray.push(data);
+          //buffer[data.x+data.y*width] = data.val;
+          setBuf(data.x, data.y, data.val);
         })
       };
       
@@ -152,15 +231,7 @@
         
       };
       
-      const init = () => {
-        canvas = document.querySelector("#canvas");
-        ctx = canvas.getContext("2d");
-        
-        noRoomScreen();
-        
-        colorSelect = document.querySelector("#colorSelect");
-        //let roomName = "";
-        
+      const buttonEvents = () =>{
         //grab all buttons
         const roomButton = document.querySelector("#roomButton");
         const randButton = document.querySelector("#randButton");
@@ -216,28 +287,44 @@
           privateButton.style.backgroundColor = "white";
         });
         
-        
-        //set up socket.on other calls from server
-        /*EXAMPLE
-        socket.on('examlpe', (data)=>{
-          ExampleMethodDefinedAbove();
+        //color grab event
+        colorSelect = document.querySelector('#colorSelect');
+        colorSelect.addEventListener('change', ()=>{
+          sandColor = colorSelect.value;
         });
-        */
         
+      };
+      
+      const init = () => {
+        canvas = document.querySelector("#canvas");
+        ctx = canvas.getContext("2d");
+        
+        canvas.width = width * cellSize;
+        canvas.height = height * cellSize;  
+          
+        noRoomScreen();
+        
+        colorSelect = document.querySelector("#colorSelect");
+        //let roomName = "";
+        
+        buttonEvents();
+        
+        for(let i = 0; i < width*height; i++){
+          buffer[i] = empty;
+        }
+
+        
+        //setInterval(placeSand, 1000);
+
       };
       
       window.onload = init;
       
     }(); //END IIFE    
     </script>
-    <style>
-      input{
-        background-color: white;
-      }
-    </style>
   </head>
   <body>
-    <canvas id="canvas" height="300" width="300">Please use an HTML 5 browser</canvas>
+    <canvas id="canvas" height="500" width="500">Please use an HTML 5 browser</canvas>
     <br />
     <label>Color:
       <select id="colorSelect">

@@ -1,15 +1,27 @@
 const http = require('http');
 const fs = require('fs');
 const socketio = require('socket.io');
+const url = require('url');
 
 const PORT = process.env.PORT || process.env.NODE_PORT || 3000;
 
 const index = fs.readFileSync(`${__dirname}/../client/client.html`);
+const style = fs.readFileSync(`${__dirname}/../client/style.css`);
 
 const onRequest = (request, response) => {
-  response.writeHead(200, { 'Content-Type': 'text/html' });
-  response.write(index);
-  response.end();
+  const parsedUrl = url.parse(request.url);
+  console.log(parsedUrl.pathname);
+
+  if (parsedUrl.pathname === '/') {
+    response.writeHead(200, { 'Content-Type': 'text/html' });
+    response.write(index);
+    response.end();
+  }
+  if (parsedUrl.pathname === '/style.css') {
+    response.writeHead(200, { 'Content-Type': 'text/css' });
+    response.write(style);
+    response.end();
+  }
 };
 
 const app = http.createServer(onRequest).listen(PORT);
@@ -49,7 +61,11 @@ const onUpdate = (sock) => {
   const socket = sock;
   socket.on('sandToServer', (data) => {
     // data.color = 'lightpink';
-    socket.broadcast.to(socket.room).emit('broadcastSand', data);
+    //socket.broadcast.to(socket.room).emit('broadcastSand', data);
+    
+    io.sockets.in(socket.room).emit('broadcastSand', data);
+    
+    
   });
 };
 
